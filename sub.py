@@ -1,47 +1,47 @@
-import sys
+sys
 import subprocess
 import os
 import re
 
-def run_sf(dom, rl=100, nt=5):
-    sf_cmd = [
+def run_subfinder(domain, r_limit=100, n_threads=5):
+    subfinder_cmd = [
         "subfinder",
-        "-d", dom,
-        "-rl", str(rl),
-        "-t", str(nt),
-        "-o", "wlist.txt",
+        "-d", domain,
+        "-rl", str(r_limit),
+        "-t", str(n_threads),
         "--recursive",
         "-nW",
-        "-silent"
+        "-silent",
+        "-o", "subdomains.txt"  # Especificando o arquivo de saída do subfinder
     ]
 
     try:
-        subprocess.run(sf_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-        sort_cmd = ["sort", "wlist.txt"]
-        uniq_cmd = ["uniq"]
-        sort_p = subprocess.Popen(sort_cmd, stdout=subprocess.PIPE)
-        uniq_p = subprocess.run(uniq_cmd, stdin=sort_p.stdout, text=True, check=True)
-        
+        subprocess.run(subfinder_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
-        pass
+        print(f"Erro ao executar o subfinder: {e}")
+        sys.exit(1)
 
-def run_hx(inp_file, out_file):
-    hx_cmd = [
+def run_httpx(input_file, output_file):
+    if not os.path.exists(input_file):
+        print(f"Arquivo {input_file} não encontrado.")
+        sys.exit(1)
+
+    httpx_cmd = [
         "httpx",
-        "-l", inp_file,
+        "-l", input_file,
         "-title", "-wc", "-sc", "-cl", "-location", "-web-server", "-asn",
         "-fc", "404",  
-        "-o", out_file,
+        "-o", output_file,
         "-silent"  
     ]
 
     try:
-        subprocess.run(hx_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(httpx_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
-        pass
+        print(f"Erro ao executar o httpx: {e}")
+        sys.exit(1)
 
-def extr_dom(url):
+def extract_domain(url):
     url = url.strip().rstrip('/')
     
     match = re.match(r'https?://(?:www\.)?([^/]+\.[a-zA-Z0-9.]+)', url)
@@ -50,52 +50,58 @@ def extr_dom(url):
     else:
         return None
 
-def scan_with_nmap(subdom):
-    dom = extr_dom(subdom)
-    if dom is None:
-        print(f'URL inválido: {subdom}')
+def scan_with_nmap(subdomain, folder_name):
+    domain = extract_domain(subdomain)
+    if domain is None:
+        print(f'URL inválido: {subdomain}')
         return
     
-    command = f'nmap -F -sV --script vulners {dom}'
+    command = f'nmap -F -sV --script vulners {domain}'
     
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     
     if result.returncode == 0:
-        if not os.path.exists('vuln'):
-            os.makedirs('vuln')
+        folder_path = os.path.join(os.getcwd(), folder_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
         
-        with open(os.path.join('vuln', 'vuln.txt'), 'a') as f:
-            f.write(f'=== Resultados para {dom} ===\n')
+        with open(os.path.join(folder_path, 'nmap.txt'), 'a') as f:
+            f.write(f'=== Resultados para {domain} ===\n')
             f.write(result.stdout)
             f.write('\n\n')
     else:
-        print(f'Erro ao escanear {dom}: {result.stderr}')
+        print(f'Erro ao escanear {domain}: {result.stderr}')
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] != "-d":
+        print("Uso: python3 main.py -d <domínio>")
         sys.exit(1)
 
     domain = sys.argv[2]
+    folder_name = domain.split('.')[0]  # Extrai o nome da pasta do domínio
 
-    rl = input("Enter number of threads (default: 100):  ")
-    nt = input("Enter number of threads (default: 5):  ")
+    r_limit = input("Enter number of threads (default: 100):  ")
+    n_threads = input("Enter number of threads (default: 5):  ")
 
-    rl = int(rl) if rl.isdigit() else 100
-    nt = int(nt) if nt.isdigit() else 5
+    r_limit = int(r_limit) if r_limit.isdigit() else 100
+    n_threads = int(n_threads) if n_threads.isdigit() else 5
 
-    run_sf(domain, rl, nt)
+    run_subfinder(domain, r_limit, n_threads)
 
-    inp_file = "wlist.txt"
-    out_file = "up-sd.txt"
-    run_hx(inp_file, out_file)
+    input_file = "subdomains.txt"  
+    output_file = "subdomain_is_up.txt"  
+    run_httpx(input_file, output_file)
 
-    with open('up-sd.txt', 'r') as f:
-        subdomains = f.readlines()
-    
-    for subdom in subdomains:
-        subdom = subdom.strip()
-        scan_with_nmap(subdom)
+    if os.path.exists(output_file):  
+        with open(output_file, 'r') as f:
+            subdomains = f.readlines()
+        
+        for subdomain in subdomains:
+            subdomain = subdomain.strip()
+            scan_with_nmap(subdomain, folder_name)
+    else:
+        print(f"Erro: O arquivo {output_file} não foi encontrado.")
 
 if __name__ == "__main__":
     main()
-
+" 
