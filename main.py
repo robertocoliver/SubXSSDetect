@@ -75,6 +75,12 @@ def extract_domain(url):
     else:
         return ""  # Retorna uma string vazia se a extração falhar
 
+def extract_full_urls(httpx_output, output_file):
+    with open(output_file, 'w') as f:
+        for line in httpx_output:
+            full_url = line.split()[0]
+            f.write(full_url + '\n')
+
 def gen_wayback(wordlist_file, output_file):
     wayback_cmd = ["cat", wordlist_file, "|", "waybackurls", ">>", output_file]
     try:
@@ -116,13 +122,26 @@ def rem_duplicates(wordlist_file):
     except Exception as e:
         print(f"Erro ao remover duplicatas: {e}")
         sys.exit(1)
+def run_linkfinder(url, cookie, output_file):
+    linkfinder_cmd = [
+        "python", "linkfinder.py",
+        "-i", url,
+        "-c", f'"{cookie}"',
+        "-o", output_file
+    ]
+    try:
+        subprocess.run(linkfinder_cmd, check=True)
+    except Exception as e:
+        print(f"Erro ao executar linkfinder: {e}")
+        sys.exit(1)
 
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] != "-d":
-        print("Uso: python3 main.py -d <domínio>")
+    if len(sys.argv) != 4 or sys.argv[1] != "-d":
+        print("Uso: python3 main.py -d <domínio> <cookie>")
         sys.exit(1)
 
     domain = sys.argv[2]
+    cookie = sys.argv[3]
 
     subdomains = subfinder(domain)  # Obtém os subdomínios encontrados (com r_limit=100 e n_threads=100)
     output_file = "subd_up.txt"
@@ -147,6 +166,14 @@ def main():
     # Executando o comando gf xss
     xss_output_file = "xss.txt"
     gf_xss(waybackurls_output_file, xss_output_file)
+
+    # Executando o linkfinder
+    linkfinder_output_file = "results.html"
+    run_linkfinder("https://example.com/1.js", cookie, linkfinder_output_file)
+    
+    # Salvar a saída do linkfinder em uma wordlist
+    with open("wordlist_linkfinder.txt", "w") as f:
+        f.write(linkfinder_output_file)
 
 if __name__ == "__main__":
     main()
