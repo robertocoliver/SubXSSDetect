@@ -82,9 +82,9 @@ def extract_full_urls(httpx_output, output_file):
             f.write(full_url + '\n')
 
 def gen_wayback(wordlist_file, output_file):
-    wayback_cmd = ["cat", wordlist_file, "|", "waybackurls", ">>", output_file]
+    wayback_cmd = ["waybackurls", "<", wordlist_file, ">>", output_file]
     try:
-        # Executando o comando cat wordlist_file | waybackurls >> output_file
+        # Executando o comando waybackurls < wordlist_file >> output_file
         subprocess.run(" ".join(wayback_cmd), shell=True, check=True)
     except Exception as e:
         print(f"Erro ao executar waybackurls: {e}")
