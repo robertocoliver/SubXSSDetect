@@ -2,6 +2,7 @@ import subprocess
 import os
 import re
 import sys
+import shutil
 
 def subfinder(dmn, r_lim=100, n_thrds=100):
     subs = []
@@ -69,6 +70,22 @@ def extract_domain(httpx_output_file, output_wordlist):
         for domain in domains:
             f.write(domain + '\n')
 
+def run_paramspider(wordlist_file):
+    paramspider_cmd = ["paramspider", "-l", wordlist_file]
+    try:
+        subprocess.run(paramspider_cmd, check=True)
+    except:
+        pass
+
+def combine_wordlists_from_results_folder():
+    results_dir = "results"
+    output_wordlist = "combined_wordlist.txt"
+    with open(output_wordlist, 'wb') as wfd:
+        for subdir, _, files in os.walk(results_dir):
+            for file in files:
+                with open(os.path.join(subdir, file), 'rb') as fd:
+                    shutil.copyfileobj(fd, wfd)
+
 def gen_wayback(wordlist_file, output_file):
     wayback_cmd = ["cat", wordlist_file, "|", "waybackurls", ">", output_file]
     try:
@@ -89,9 +106,10 @@ def main():
 
     extract_domain(output_file, output_wordlist)
 
-    # Executar o Waybackurls usando a wordlist gerada
-    wayback_output_file = "waybackurls_output.txt"
-    gen_wayback(output_wordlist, wayback_output_file)
+    run_paramspider(output_wordlist)
+    combine_wordlists_from_results_folder()
+
+    gen_wayback(output_wordlist, "wayback_wordlist.txt")
 
 if __name__ == "__main__":
     main()
