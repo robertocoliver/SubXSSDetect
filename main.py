@@ -69,6 +69,13 @@ def extract_domain(httpx_output_file, output_wordlist):
         for domain in domains:
             f.write(domain + '\n')
 
+def gen_wayback(wordlist_file, output_file):
+    wayback_cmd = ["cat", wordlist_file, "|", "waybackurls", ">", output_file]
+    try:
+        subprocess.run(" ".join(wayback_cmd), shell=True, check=True)
+    except:
+        pass
+
 def main():
     if len(sys.argv) != 4 or sys.argv[1] != "-d":
         sys.exit(1)
@@ -82,6 +89,11 @@ def main():
 
     extract_domain(output_file, output_wordlist)
 
+    # Executar o Waybackurls usando a wordlist gerada
+    wayback_output_file = "waybackurls_output.txt"
+    gen_wayback(output_wordlist, wayback_output_file)
+
 if __name__ == "__main__":
     main()
+
 
