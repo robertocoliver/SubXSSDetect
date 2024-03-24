@@ -123,17 +123,21 @@ def rem_duplicates(wordlist_file):
         print(f"Erro ao remover duplicatas: {e}")
         sys.exit(1)
 
-def run_linkfinder(url, output_file):
-    linkfinder_cmd = [
-        "python", "linkfinder.py",
-        "-i", url,
-        "-o", output_file
-    ]
-    try:
-        subprocess.run(linkfinder_cmd, check=True)
-    except Exception as e:
-        print(f"Erro ao executar linkfinder: {e}")
-        sys.exit(1)
+def run_linkfinder(urls_file, output_file):
+    with open(urls_file, 'r') as f:
+        urls = f.readlines()
+
+    for url in urls:
+        linkfinder_cmd = [
+            "python", "linkfinder.py",
+            "-i", url.strip(),
+            "-o", output_file
+        ]
+        try:
+            subprocess.run(linkfinder_cmd, check=True)
+        except Exception as e:
+            print(f"Erro ao executar linkfinder para {url}: {e}")
+            sys.exit(1)
 
 def main():
     if len(sys.argv) != 3 or sys.argv[1] != "-d":
@@ -142,10 +146,12 @@ def main():
 
     domain = sys.argv[2]
 
+    # Encontrar subdomínios
     subdomains = subfinder(domain)  # Obtém os subdomínios encontrados (com r_limit=100 e n_threads=100)
     output_file = "subd_up.txt"
     httpx(subdomains, output_file)
 
+    # Gerar lista de URLs únicas
     wordlist_temp_file = "wlist_tmp.txt"
     with open(wordlist_temp_file, "w") as f:
         for subdomain in subdomains:
@@ -153,26 +159,29 @@ def main():
             if domain:
                 f.write(domain + "\n")
 
+    # Obter URLs do Wayback Machine
     waybackurls_output_file = "waybackurls.txt"
     gen_wayback(wordlist_temp_file, waybackurls_output_file)
 
-    # Executando o paramspider usando a mesma wordlist gerada pelo waybackurls
-    paramspider(wordlist_temp_file, waybackurls_output_file)
+    # Executar o ParamSpider usando a mesma lista de URLs gerada pelo Waybackurls
+    paramspider_output_file = "paramspider_output.txt"
+    paramspider(waybackurls_output_file, paramspider_output_file)
 
     # Remover duplicatas
-    rem_duplicates(wordlist_temp_file)
+    rem_duplicates(paramspider_output_file)
 
-    # Executando o comando gf xss
+    # Executar o comando gf xss
     xss_output_file = "xss.txt"
-    gf_xss(waybackurls_output_file, xss_output_file)
+    gf_xss(paramspider_output_file, xss_output_file)
 
-    # Executando o linkfinder
-    linkfinder_output_file = "results.html"
-    run_linkfinder("https://example.com/1.js", linkfinder_output_file)
-    
-    # Salvar a saída do linkfinder em uma wordlist
+    # Executar o LinkFinder
+    linkfinder_output_file = "linkfinder_results.html"
+    run_linkfinder(waybackurls_output_file, linkfinder_output_file)
+
+    # Salvar a saída do LinkFinder em uma wordlist
     with open("wordlist_linkfinder.txt", "w") as f:
-        f.write(linkfinder_output_file)
+        with open(linkfinder_output_file, "r") as lf:
+            f.write(lf.read())
 
 if __name__ == "__main__":
     main()
