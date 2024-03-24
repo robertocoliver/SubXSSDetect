@@ -16,7 +16,7 @@ Enter the directory
 ```
 Execute the tool
 ```bash
-  python3 sub.py -d google.com 
+  python3 main.py -d google.com url.txt  
 ```
 
 ## Technology Used:
