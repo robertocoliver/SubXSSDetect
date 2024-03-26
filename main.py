@@ -93,6 +93,19 @@ def gen_wayback(wordlist_file, output_file):
     except:
         pass
 
+def extract_urls(wordlist_path):
+    paths = []
+
+    regex = r"https?://[^\s]+"
+
+    with open(wordlist_path, 'r') as file:
+        for line in file:
+            match = re.search(regex, line)
+            if match:
+                paths.append(match.group())
+
+    return paths
+
 def main():
     if len(sys.argv) != 4 or sys.argv[1] != "-d":
         sys.exit(1)
@@ -104,6 +117,12 @@ def main():
     output_file = "subd_up.txt"
     httpx(subdomains, output_file)
 
+    paths = extract_urls(output_file)
+    
+    with open("wordlist_link.txt", 'w') as f:
+        for path in paths:
+            f.write(path + '\n')
+
     extract_domain(output_file, output_wordlist)
 
     run_paramspider(output_wordlist)
@@ -113,5 +132,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
